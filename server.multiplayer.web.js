@@ -35,10 +35,30 @@ http.createServer(function (req, res) {
 	  	case '/':
 		  	var html = fs.readFile('index.html', function (err, data) {
 			    if (err) { 
-				    res.writeHead('200', "{'Content-Type': 'text/html'}");
-			    	rs.write(err.toString());
+		                res.writeHead('500', "{'Content-Type': 'text/html'}");
+			    	res.write(err.toString());
 			    }
 			    res.writeHead('200', "{'Content-Type': 'text/html'}");
+		  	    res.end(data);
+			});
+	  		break;
+	  	case '/style.css':
+		  	var css = fs.readFile('style.css', function (err, data) {
+			    if (err) { 
+		                res.writeHead('500', "{'Content-Type': 'text/css'}");
+			    	res.write(err.toString());
+			    }
+			    res.writeHead('200', "{'Content-Type': 'text/css'}");
+		  	    res.end(data);
+			});
+	  		break;
+	  	case '/reset.css':
+		  	var css = fs.readFile('reset.css', function (err, data) {
+			    if (err) { 
+		                res.writeHead('500', "{'Content-Type': 'text/css'}");
+			    	res.write(err.toString());
+			    }
+			    res.writeHead('200', "{'Content-Type': 'text/css'}");
 		  	    res.end(data);
 			});
 	  		break;
@@ -77,7 +97,6 @@ http.createServer(function (req, res) {
 	  		break;
 	  }
   } catch (e) {
-  	console.log("[ERROR] "+e+" -> "+req.url);
   	var error = e.toString().replace(/'/g, "");
   	res.end("Game.handleError({error:'"+error+"'});");
   }
@@ -110,7 +129,7 @@ function Round() {
 		console.log(this._players);
  		if (this._players[params.nick]) {
  			var player = this._players[params.nick];
- 			console.log(player.nick+' == '+params.nick+' && '+player.secret+' == '+params.secret);
+ 	//		console.log(player.nick+' == '+params.nick+' && '+player.secret+' == '+params.secret);
  			if (player.nick == params.nick && player.secret == params.secret) {
 			  	return true;
  			} else {

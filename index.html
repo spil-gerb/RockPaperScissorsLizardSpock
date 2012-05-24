@@ -1,0 +1,159 @@
+<html>
+<head>
+	<title>Blah</title>
+	<script language="javascript" type='text/javascript'>
+	Game = {
+		
+		_nick : '',
+		_secret : null,
+		_timer : null,
+		
+		auth : function() {
+			var nick = document.getElementById('nick').value;
+			if (nick.length > 0) {
+				this.ajaj('auth', {'nick' : nick});
+			}
+		},
+		
+    	handleAuth : function(data) {
+    		this._nick = data.nick;
+    		this._secret = data.secret;
+    		this.displayMessage("You've now joined as "+this._nick+".");
+    		this.handleBuffer(data.buffer);
+			this._clearJson();
+    	},
+		
+		turn : function() {
+			var hand = document.getElementById('hand').value;
+			this.ajaj('play', {'nick' : this._nick, 'secret' : this._secret, 'hand' : hand});
+		},
+
+		handleTurn : function(data) {
+			this.handleBuffer(data);
+		},
+		
+		roundEnd : function() {
+			this.ajaj('rend', {'nick' : this._nick, 'secret' : this._secret});
+		},
+		
+		handleRoundEnd : function(data) {
+			console.log(data);
+		},
+
+		initCountdown : function(seconds) {
+			this._roundTimeLeft = parseInt(seconds, 10); 
+			if (this._timer != null) {
+				clearInterval(this._timer);
+			}
+			this._timer = setInterval(function() {
+				Game.handleCountdown(Game._roundTimeLeft);
+			}, 1000);
+		},
+				
+		ajaj : function(method, data, callback) {
+	        this._callback = callback;
+	        var url = '/'+method+'/';
+	        var suffixUrl = [];
+	        for(var key in data) {
+	        	suffixUrl.push(key+'='+data[key]);
+	        }
+        	suffixUrl.push('rand='+Math.random());
+	        if (suffixUrl.length > 0) {
+	        	url = url + '?' + suffixUrl.join('&');
+	        }
+	        var head = document.getElementsByTagName("head").item(0);
+	        var script = document.createElement("script");
+	        script.setAttribute("type", "text/javascript");
+	        script.setAttribute("src", url);
+	        script.setAttribute("id", 'ajaj');
+	        head.appendChild(script);
+	    },
+
+		handleBuffer : function(data) {
+			this._clearJson();
+			for (var buf in data) {
+				for (var p in data[buf]) {
+					switch(p) {
+						case 'message':
+							this.displayMessage(data[buf][p]);
+							break;
+						case 'error':
+							this.displayError(data[buf][p]);
+							break;
+						case 'timeleft':
+							this.initCountdown(data[buf][p]);
+							break;
+					}
+				}
+			}
+		},
+
+		handleError : function(data) {
+			this._clearJson();
+			this.displayError(data.error);
+		},
+		
+		displayError : function(txt) {
+			document.getElementById("message_board").innerHTML = '<p class="error">'+txt+'</p>' + document.getElementById("message_board").innerHTML;
+		},
+
+		displayMessage : function(txt) {
+			document.getElementById("message_board").innerHTML = '<p class="message">'+txt+'</p>' + document.getElementById("message_board").innerHTML;
+		},
+		
+		handleCountdown : function(seconds) {
+			document.getElementById("time_left").innerHTML = "time remaining<br \><div class='hudhead'>"+seconds+"</div>";
+			if (seconds <= 0) {
+				clearTimeout(this._timer);
+				this.roundEnd();
+			} else {
+				this._roundTimeLeft--;
+			}
+		},
+/*
+		_callback : function(data) {
+	        this._callback(data);
+	        this._clearJson();
+    	},
+*/	    
+	    _clearJson : function() {
+	        var checker = document.getElementById("maypaystatuschecker");
+	        if (checker) {
+	            var head = document.getElementsByTagName("head").item(0);
+	            head.removeChild(checker);
+	        }
+	    }
+	    
+	};
+	</script>
+	
+</head>
+<body>
+
+<h1>Rock-Paper-Scissors-Lizard-Spock</h1>
+<link type="text/css" rel="stylesheet" href="reset.css">
+<link type="text/css" rel="stylesheet" href="style.css">
+<form>
+	<div id="auth">
+		Choose a nickname: <input type="text" id="nick" value="gerb"> <input type="button" onmousedown="Game.auth();" value="play now!">
+	</div>
+	<div id="play">
+		Play a hand:
+		<select id="hand">
+			<option value="rock">rock</option>
+			<option value="paper">paper</option>
+			<option value="scissors">scissors</option>
+			<option value="lizard">lizard</option>
+			<option value="spock">spock</option>
+		</select>
+		<input type="button" onmousedown="Game.turn();" value="play hand">
+	</div>
+	<div id="players_online" class='hud'></div>
+	<div id="time_left" class="hud"></div>
+	<div id="message_board" style="border:1px solid blue;">
+	Message board...
+	</div>
+
+</form>
+</body>
+</html>
