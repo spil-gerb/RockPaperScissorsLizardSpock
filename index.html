@@ -71,18 +71,21 @@
 
 		handleBuffer : function(data) {
 			this._clearJson();
+			console.log(data);
 			for (var buf in data) {
-				for (var p in data[buf]) {
-					switch(p) {
-						case 'message':
-							this.displayMessage(data[buf][p]);
-							break;
-						case 'error':
-							this.displayError(data[buf][p]);
-							break;
-						case 'timeleft':
-							this.initCountdown(data[buf][p]);
-							break;
+				for (var i in data[buf]) {
+					for (var p in data[buf][i]) {
+						switch(p) {
+							case 'message':
+								this.displayMessage(data[buf][i][p]);
+								break;
+							case 'error':
+								this.displayError(data[buf][i][p]);
+								break;
+							case 'timeleft':
+								this.initCountdown(data[buf][i][p]);
+								break;
+						}
 					}
 				}
 			}

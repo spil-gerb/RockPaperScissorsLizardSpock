@@ -6,6 +6,9 @@
 * - check if the winnings are handled correctly. I've seen weird results.
 * - on exit, the player should be removed from the game. onunload?
 */
+
+// config shit
+var listenPort = 1337;
 var http = require('http');
 var fs = require('fs');
 var roundNr = 1;
@@ -13,10 +16,83 @@ var roundInterval = setInterval(function() {
 	console.log("finishing current round");
 	currentRound.finishRound();
 	roundNr++; 
-	currentRound = new Round(currentRound.getPlayers(), roundNr);
+	var players = currentRound.getPlayers();
+	currentRound = new Round();
+	currentRound.start(players, roundNr);
 	console.log('Round '+roundNr+' started');
 }, 30000);
-var currentRound = new Round([], roundNr);
+
+// player class
+
+Player = function(nickName) {
+
+	this.nick = nickName;
+	this.secret = Math.ceil(Math.random()*9999999);
+	this.hand = null;
+	this.buffer = [];
+	this.rule = [];
+	this.points = 0;
+
+	this.bufferResponse = function(response) {
+		this.buffer.push(response);
+	}
+
+	this.addPoints = function(points) {
+		this.points = this.points + points;
+	}
+
+	
+	this.getHand = function() {
+		return this.hand;
+	}
+
+	this.clear = function() {
+		this.hand = null;
+	}
+	
+	this.outranks = function(otherPlayer) {
+		if (this.hand == false) return;
+		var you_win = null;
+		for(var i=0;i<rules.length;i++) {
+			if (rules[i][0] == otherPlayer.hand && rules[i][2] == this.hand) {
+				you_win = false;
+				this.rule.push(rules[i].join(" ")); 
+			} else if (rules[i][2] == otherPlayer.hand && rules[i][0] == this.hand) {
+				you_win = true;
+				this.rule.push(rules[i].join(" ")); 
+			}
+		}
+		if (you_win == null) {
+			this.bufferResponse("** You didn't enter a valid hand before the end of the round");
+			return false;
+		}
+		return you_win;
+	}
+	
+	this.getRule = function(client1, client2) {
+		if (client1.hand == client2.hand) {
+			return client1.hand+" equals "+client2.hand + ", a tie between "+client1.nick+" and "+client2.nick+".\n\r";
+		}
+		for(var i=0;i<rules.length;i++) {
+			if (rules[i][0] == client1.hand && rules[i][2] == client2.hand) {
+				return rules[i].join(" ") + ", " + client1.nick + " beats " +client2.nick + ".\n\r";
+			}
+		}
+		return "";
+	}	
+}
+
+cpuPlayer = new Player('CPU');
+cpuPlayer.bufferResponse = function(response) {}
+cpuPlayer.getHand = function() {
+		return possibleHands[Math.ceil(Math.random()*possibleHands.length)];
+}
+
+/// Server init
+
+var currentRound = new Round();
+currentRound.start([cpuPlayer], roundNr);
+var possibleHands = ['rock', 'paper', 'scissors', 'lizard', 'spock'];
 var rules = [
    		['scissors', 'cuts', 'paper'], 
 		['paper', 'covers', 'rock'], 
@@ -65,6 +141,7 @@ http.createServer(function (req, res) {
 	  	default:
 		  	res.writeHead('200', "{'Content-Type': 'application/json'}");
 		  	var request = require('url').parse(req.url, true);
+		  	var response = [];
 	  		switch(req.url.substr(1, 4)) {
 	  			case 'auth':
 				  	//res.writeHead('200', "{'Content-Type': 'application/json'}");
@@ -72,21 +149,26 @@ http.createServer(function (req, res) {
 				  	if (currentRound.playerExists(nickName)) {
 				  		throw "That nickname is already taken.";
 				  	} else {
-					  	player = currentRound.addPlayer(nickName);
+					  	response.push(currentRound.addPlayer(nickName));
 				  		res.end("Game.handleAuth("+JSON.stringify(player)+");");
 				  	}
 	  				break;
 	  			case 'play':
 	  				if (currentRound.validate(request.query)) {
-	  					response = currentRound.playTurn(request.query);
+	  					response.push(currentRound.playTurn(request.query));
 				  		res.end("Game.handleTurn("+JSON.stringify(response)+");");
 	  				}
 	  				break;
 	  			case 'rend':
 	  				if (currentRound.validate(request.query)) {
-	  					var response = currentRound.getLastResults();
+	  					response.push(currentRound.getLastResults());
+	  					response.push(currentRound.getTimeLeft());
 				  		res.end("Game.handleRoundEnd("+JSON.stringify(response)+");");
 	  				}
+	  				break;
+	  			case 'time':
+	  				response.push(currentRound.getTimeLeft());
+			  		res.end("Game.handleTurn("+JSON.stringify(response)+");");
 	  				break;
 	  			case 'favi': // favicon.ico
 	  				break;
@@ -100,7 +182,7 @@ http.createServer(function (req, res) {
   	var error = e.toString().replace(/'/g, "");
   	res.end("Game.handleError({error:'"+error+"'});");
   }
-}).listen(1337, "127.0.0.1");
+}).listen(listenPort, "127.0.0.1");
 process.on('uncaughtException', function (err) {
   console.log('Caught exception: ' + err);
 });
@@ -108,24 +190,23 @@ process.on('uncaughtException', function (err) {
 function Round() {
 	this._players = [];
 	this._endTime = new Date();
+	this.roundNr = roundNr;
 	this.results = [];
-	
-// 	var self = this;
- 	// initialize rounds
- 	this.start = function(playerClients, roundNr) {
- 		this._results = [];
- 		this._players = [];
- 		this.roundNr = roundNr;
+
+	this.start = function(playerClients, roundNr) {
+		console.log(typeof this._players + ' - 1');
 		playerClients.forEach(function(player) {
 			player.clear();
-			console.log(player.nick+' was added.')
+			console.log(typeof this._players + ' - 2');
+			console.log(player.nick+' was added.');
 			this._players[player.nick] = player;
 			player.bufferResponse("{'message':'A new round has started.'}");
 	    });
- 	},
+	};
  	
  	this.validate = function(params) {
 		console.log(params);
+		console.log('-------------------------------');
 		console.log(this._players);
  		if (this._players[params.nick]) {
  			var player = this._players[params.nick];
@@ -238,11 +319,11 @@ function Round() {
  		var hands = [];
 		// make sure all hands are set
 		for(var nick in this._players) {
-			if (this._players[nick].hand != null) {
+			if (this._players[nick].getHand() != null) {
 				hands.push(this._players[nick]);
 			}	
 		}
-		console.log("hands done : "+hands.length);
+		// check which hand outranks the others
 	    for(x = 0; x < hands.length; x++) {
 			for(y = 0; y < (hands.length-1); y++) {
 				if(hands[y+1].outranks(hands[y])) {
@@ -286,60 +367,5 @@ function Round() {
 	   }
  	}
 }
-Player = function(nickName) {
 
-	this.nick = nickName;
-	this.secret = Math.ceil(Math.random()*9999999);
-	this.hand = null;
-	this.buffer = [];
-	this.rule = [];
-	this.points = 0;
 
-	this.bufferResponse = function(response) {
-		this.buffer.push(response);
-	}
-
-	this.addPoints = function(points) {
-		this.points = this.points + points;
-	}
-
-	
-	this.getHand = function() {
-		return this.hand;
-	}
-
-	this.clear = function() {
-		this.hand = null;
-	}
-	
-	this.outranks = function(otherPlayer) {
-		if (this.hand == false) return;
-		var you_win = null;
-		for(var i=0;i<rules.length;i++) {
-			if (rules[i][0] == otherPlayer.hand && rules[i][2] == this.hand) {
-				you_win = false;
-				this.rule.push(rules[i].join(" ")); 
-			} else if (rules[i][2] == otherPlayer.hand && rules[i][0] == this.hand) {
-				you_win = true;
-				this.rule.push(rules[i].join(" ")); 
-			}
-		}
-		if (you_win == null) {
-			this.bufferResponse("** You didn't enter a valid hand before the end of the round");
-			return false;
-		}
-		return you_win;
-	}
-	
-	this.getRule = function(client1, client2) {
-		if (client1.hand == client2.hand) {
-			return client1.hand+" equals "+client2.hand + ", a tie between "+client1.nick+" and "+client2.nick+".\n\r";
-		}
-		for(var i=0;i<rules.length;i++) {
-			if (rules[i][0] == client1.hand && rules[i][2] == client2.hand) {
-				return rules[i].join(" ") + ", " + client1.nick + " beats " +client2.nick + ".\n\r";
-			}
-		}
-		return "";
-	}	
-}
