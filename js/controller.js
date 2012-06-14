@@ -8,24 +8,30 @@ Controller = function() {
 	    switch(req.url) {
 	  	case '/':
 		    req.url = '/index.html';
-		case '/style.css':
+		case '/index.html':
   		case '/reset.css':
+		case '/style.css':
 		    this._processResource(req.url.substr(1), res);
 		    break;
 	        default: 
- 	            res.writeHead('200', "{'Content-Type': 'text/html'}");
-	            res.end(data);
+ 	            var command = req.url.substr(0, req.url.substr(1).indexOf("/")+1);
+		    gameHandler = require('../js/controller.js');
+		    var gameHandler = new game.Handler();
+	            console.log("Command received : " + req.url + "." + command);	
+		    res.writeHead('200', "{'Content-Type': 'text/html'}");
+	            res.end('true');
 	            break;
 	        }
   	} catch (e) {
   	    var error = e.toString().replace(/'/g, "");
+	    console.log(error);
   	    res.end("Game.handleError({error:'"+error+"'});");
  	}
     }
 
     this._processResource = function(filePath, res) {
         var fs = require('fs');
-        var data = fs.readFile(filePath, function (err, data) {
+        var data = fs.readFile('./resources/'+filePath, function (err, data) {
 	    if (err) { 
                 res.writeHead('500', "{'Content-Type': 'text/html'}");
 	    	res.write(err.toString());
