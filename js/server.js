@@ -6,8 +6,10 @@ if (isNaN(listenPort)) {
     console.log('No proper port given. please specify a port as a parameter.');
     exit();	
 } 
-console.log(listenPort);
+console.log('Listening to port '+listenPort);
 control = require('../js/controller.js');
+
+		    game = require('../js/controller.js');
 var crl = new control.Controller();
 function dealWithRequest(request, response) {
     crl.route(request, response);

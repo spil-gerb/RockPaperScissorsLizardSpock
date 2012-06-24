@@ -1,7 +1,8 @@
-Controller = function() {
+Controller = function(gameHandler) {
 
     this._req = null;
     this._res = null;
+    this._gameHandler = gameHandler;
 
     this.route = function(req, res) {
 	try {
@@ -15,7 +16,6 @@ Controller = function() {
 		    break;
 	        default: 
  	            var command = req.url.substr(0, req.url.substr(1).indexOf("/")+1);
-		    gameHandler = require('../js/controller.js');
 		    var gameHandler = new game.Handler();
 	            console.log("Command received : " + req.url + "." + command);	
 		    res.writeHead('200', "{'Content-Type': 'text/html'}");
